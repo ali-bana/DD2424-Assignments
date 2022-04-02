@@ -1,0 +1,1 @@
+testing eta=0.001, lambda=1, loss:1.8526112936219554, cost:1.9271128327766287, accuracy:0.3756
