@@ -36,7 +36,7 @@ def display_flat_image(img):
     # plt.show()
 
 
-def load_data(dir_path):
+def load_data(dir_path, validation_n=5000):
     x_train = []
     x_val = []
     x_test = []
@@ -60,24 +60,37 @@ def load_data(dir_path):
     std = x_train.std()
     x_train = (x_train - mean) / std
     x_test = (x_test - mean) / std
-    x_val = x_train[:5000]
-    y_val = y_train[:5000]
-    x_train = x_train[5000:]
-    y_train = y_train[5000:]
+    x_val = x_train[:validation_n]
+    y_val = y_train[:validation_n]
+    x_train = x_train[validation_n:]
+    y_train = y_train[validation_n:]
     y_train += np.random.uniform(low=0, high=0.01, size=y_train.shape)
     y_train = y_train / y_train.sum(axis=1)[:, np.newaxis]
     return x_train.T, x_val.T, x_test.T, y_train.T, y_val.T, y_test.T, mean, std
 
 
-def shuffle(X, Y):
+def shuffle(X, Y, X_shuffled=None):
     n = X.shape[1]
     idx = np.random.permutation(n)
-    return X[:, idx], Y[:, idx]
+    if type(X_shuffled) == type(None):
+        return X[:, idx], Y[:, idx]
+    return X[:, idx], Y[:, idx], X_shuffled[:, idx]
+
+
+def flip(X):
+    X2 = X.copy()
+    for i in range(32 * 3 - 1):
+        X2[i*32:(i+1)*32] = X2[i*32:(i+1)*32][::-1]
+    return X2
 
 
 if __name__ == '__main__':
-    # x_train, x_val, x_test, y_train, y_val, y_test, mean, std = load_data(os.path.join(
-    #     os.getcwd(), 'Data', 'cifar-10-batches-py'))
-    # for i in range(10):
-    #     display_flat_image(x_train[:, i])
-    print(shuffle(np.array([[1, 2, 3], [4, 5, 6]]), np.array([[1, 2, 3]])))
+    x_train, x_val, x_test, y_train, y_val, y_test, mean, std = load_data(os.path.join(
+        os.getcwd(), 'Data', 'cifar-10-batches-py'))
+
+    # for i in range(32 * 3 - 1):
+    #     x_train[:, 0][i*32:(i+1)*32] = x_train[:, 0][i*32:(i+1)*32][::-1]
+    x_train_f = flip(x_train)
+    for i in range(10):
+        display_flat_image(x_train[:, i])
+        display_flat_image(x_train_f[:, i])

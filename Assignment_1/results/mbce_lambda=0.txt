@@ -1,0 +1,1 @@
+testing mbce model: lambda=0, accuracy:0.3227, loss:1.6828093572370395

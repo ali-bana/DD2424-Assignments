@@ -1,0 +1,1 @@
+testing simple model: lambda=0.1, accuracy:0.3308, loss:0.6566262587921082
