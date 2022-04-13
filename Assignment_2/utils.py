@@ -79,14 +79,6 @@ def get_data(data_folder):
     return _load_data(train_files, val_files, test_files)
 
 
-def shuffle(X, Y, X_shuffled=None):
-    n = X.shape[1]
-    idx = np.random.permutation(n)
-    if type(X_shuffled) == type(None):
-        return X[:, idx], Y[:, idx]
-    return X[:, idx], Y[:, idx], X_shuffled[:, idx]
-
-
 def flip(X):
     X2 = X.copy()
     for i in range(32 * 3 - 1):

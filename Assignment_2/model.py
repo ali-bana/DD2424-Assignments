@@ -1,124 +1,11 @@
+from cProfile import label
 from utils import get_data
 import os
 import numpy as np
 from tqdm import tqdm
-from functions import ComputeGradsNum
+import matplotlib.pyplot as plt
 n_in = 3072
 n_out = 10
-
-
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-
-
-def forward(X, W, b, is_mbce=False):
-    logits = W @ X + b
-    # print(logits.max())
-    if is_mbce:
-        return sigmoid(logits)
-    p = softmax(logits)
-    return p
-
-
-def accuracy(Y, P):
-    Y = Y.T
-    P = P.T
-    y_num = np.argmax(Y, axis=1)
-    y_pred = np.argmax(P, axis=1)
-    return np.where(y_num == y_pred, 1, 0).sum() / y_num.shape[0]
-
-
-def loss(Y, P, W, lamda):
-    Y = Y.T
-    P = P.T
-    minus_log = -1 * np.log(np.sum(P * Y, axis=1))
-    return minus_log.mean() + lamda * np.sum(np.square(W))
-
-
-def mbce_loss(Y, P, W, lamda):
-    l = -0.1 * ((1 - Y) * np.log(1 - P) + Y * np.log(P))
-    l = l.sum(axis=0)
-    return l.mean()
-
-
-def compute_gradients(X, Y, W, b, P, lamda):
-    n_b = X.shape[1]
-    g = -(Y - P)
-    dl_dw = g @ X.T / n_b + 2 * lamda * W
-    dl_db = (g @ np.ones((n_b, 1))) / n_b
-    return dl_dw, dl_db
-
-
-def fit(X, Y, W, b, lamda, eta, batch_size, epoch, x_val=None, y_val=None, flipping=False, is_mbce=False):
-    n = X.shape[1]
-    logs = {'train_loss': [], 'train_acc': [], 'train_cost': []}
-    if is_mbce:
-        eta /= 10
-    if type(x_val) != type(None):
-        logs['val_loss'] = []
-        logs['val_acc'] = []
-        logs['val_cost'] = []
-    if flipping:
-        X_flipped = flip(X)
-    for e in range(epoch):
-        if flipping:
-            X, Y, X_flipped = shuffle(X, Y, X_flipped)
-        else:
-            X, Y = shuffle(X, Y)
-        with tqdm(range(0, (n//batch_size)+1)) as pbar:
-            for i in pbar:
-                if i*batch_size == min(n, (i+1)*batch_size):
-                    break
-                x = X[:, i*batch_size: min(n, (i+1)*batch_size)]
-                if flipping:
-                    x_not_fliped = X[:, i*batch_size: min(n, (i+1)*batch_size)]
-                    x_flipped = X_flipped[:, i *
-                                          batch_size: min(n, (i+1)*batch_size)]
-                    length = min(n, (i+1)*batch_size) - i*batch_size
-                    condition = np.ones((n_in, length)) * \
-                        np.random.binomial(1, 0.5, length)
-                    x = np.where(condition > 0.5, x_flipped, x_not_fliped)
-                    # for i in range(10):
-                    #     print(condition[:, i])
-                    #     display_flat_image(x[:, i])
-                    #     display_flat_image(x_not_fliped[:, i])
-                    #     display_flat_image(x_flipped[:, i])
-                    # assert False
-                y = Y[:, i*batch_size: min(n, (i+1)*batch_size)]
-                p = forward(x, W, b, is_mbce)
-                if i % 10 == 0:
-                    pbar.set_description(
-                        f'{e}/{epoch}, accuracy={round(accuracy(y, p),2)}, loss={round(loss(y, p, W, lamda), 2)}')
-                gW, gb = compute_gradients(x, y, W, b, p, lamda)
-                W = W - eta * gW
-                b = b - eta * gb
-        p = forward(X, W, b, is_mbce)
-        train_acc = accuracy(Y, p)
-        logs['train_acc'].append(train_acc)
-        train_loss = loss(Y, p, W, 0) if not is_mbce else mbce_loss(Y, p, W, 0)
-        logs['train_loss'].append(train_loss)
-        train_cost = loss(Y, p, W, lamda)
-        logs['train_cost'].append(train_cost)
-        if type(x_val) != type(None):
-            p = forward(x_val, W, b, is_mbce)
-            val_acc = accuracy(y_val, p)
-            logs['val_acc'].append(val_acc)
-            val_loss = loss(y_val, p, W, 0) if not is_mbce else mbce_loss(
-                y_val, p, W, 0)
-            logs['val_loss'].append(val_loss)
-            val_cost = loss(y_val, p, W, lamda)
-            logs['val_cost'].append(val_cost)
-
-        reporting_str = f'epoch {e}/{epoch}, train_acc: {round(train_acc, 2)}, train_loss: {round(train_loss, 2)}, train_cost: {round(train_cost, 2)}'
-        if type(x_val) != type(None):
-            reporting_str += f', val_acc: {round(val_acc, 2)}, val_loss: {round(val_loss, 2)}, val_cost: {round(val_cost, 2)}'
-        print(reporting_str)  # DO NOT DELETE
-    return W, b, logs
-
-
-def evaluate(X, Y, W, b, lamda, is_mbce=False):
-    P = forward(X, W, b, is_mbce)
-    return {'loss': loss(Y, P, W, 0), 'cost': loss(Y, P, W, lamda), 'acc': accuracy(Y, P)}
 
 
 class MLP:
@@ -171,6 +58,20 @@ class MLP:
         p = self._softmax(((W2 @ h).T + b2).T)
         return self._loss(Y, p) + lambda_ * (np.sum(np.square(W1)) + np.sum(np.square(W2)))
 
+    def _accuracy(self, Y, P):
+        Y = Y.T
+        P = P.T
+        y_num = np.argmax(Y, axis=1)
+        y_pred = np.argmax(P, axis=1)
+        return np.where(y_num == y_pred, 1, 0).sum() / y_num.shape[0]
+
+    def _shuffle(self, X, Y, Z=None):
+        n = X.shape[1]
+        idx = np.random.permutation(n)
+        if type(Z) == type(None):
+            return X[:, idx], Y[:, idx]
+        return X[:, idx], Y[:, idx], Z[:, idx]
+
     def gradient_checker(self, X, Y, checker_function):
         # changes the weights and bias for a bigger gradeint
         old_params = [self.W1, self.b1, self.W2, self.b2]
@@ -193,13 +94,59 @@ class MLP:
         print(f'for b1: Max:{np.abs(g_b1_num).max()}, mean:{g_b1_num.mean()}, std:{g_b1_num.std()} \nfor b1 error: Max:{dif_b1.max()}, mean:{dif_b1.mean()}, std:{dif_b1.std()}')
 
         print(f'for b2: Max:{np.abs(g_b2_num).max()}, mean:{g_b2_num.mean()}, std:{g_b2_num.std()} \nfor b2 error: Max:{dif_b2.max()}, mean:{dif_b2.mean()}, std:{dif_b2.std()}')
+        self.W1, self.b1, self.W2, self.b2 = old_params
+
+    def fit(self, X, Y, learning_rate, epochs, batch_size, x_val, y_val, lr_scheduler=None):
+        n = X.shape[1]
+        logs = {'train_loss': [], 'train_acc': [], 'train_cost': []}
+        logs['val_loss'] = []
+        logs['val_acc'] = []
+        logs['val_cost'] = []
+        iter = 0
+        for e in range(epochs):
+            X, Y = self._shuffle(X, Y)
+            with tqdm(range(0, (n//batch_size)+1)) as pbar:
+                for i in pbar:
+                    start_index, end_index = i*batch_size, (i+1)*batch_size
+                    if i*batch_size == min(n, end_index):
+                        break
+                    x = X[:, start_index: end_index]
+                    y = Y[:, start_index: end_index]
+                    p, h = self._forward(x)
+                    g_W1, g_b1, g_W2, g_b2 = self._backward(x, y, p, h)
+                    if type(lr_scheduler) != type(None):
+                        learning_rate = lr_scheduler(iter, learning_rate)
+                    self.W1 -= learning_rate * g_W1
+                    self.W2 -= learning_rate * g_W2
+                    self.b1 -= learning_rate * g_b1
+                    self.b2 -= learning_rate * g_b2
+                    loss_val, cost_val, acc_val = self.evaluate(x_val, y_val)
+                    loss_train, cost_train, acc_train = self.evaluate(X, Y)
+                    logs['train_loss'].append(loss_train)
+                    logs['train_cost'].append(cost_train)
+                    logs['train_acc'].append(acc_train)
+                    logs['val_loss'].append(loss_val)
+                    logs['val_cost'].append(cost_val)
+                    logs['val_acc'].append(acc_val)
+                    iter += 1
+
+            print(
+                f'epoch {e}/{epochs}\n\tTraining: loss:{loss_train}, cost{cost_train}, acc:{acc_train}')
+            print(
+                f'\tValidation: loss:{loss_val}, cost{cost_val}, acc:{acc_val}')
+        return logs
+
+    def evaluate(self, X, Y):
+        P, H = self._forward(X)
+        return [self._loss(Y, P), self._cost(Y, P), self._accuracy(Y, P)]
 
 
 if __name__ == '__main__':
     x_train, x_val, x_test, y_train, y_val, y_test, mean, std = get_data(
         os.path.join(os.getcwd(), 'Data'))
 
-    model = MLP(x_train.shape[0], 50, 10, 0.1)
+    model = MLP(x_train.shape[0], 50, 10, 0.0)
     # p, h = model._forward(x_train)
     # model._backward(x_train, y_train, p, h)
-    model.gradient_checker(x_train[:, :30], y_train[:, :30], ComputeGradsNum)
+    # model.gradient_checker(x_train[:, :30], y_train[:, :30], ComputeGradsNum)
+    model.fit(x_train[:, :100], y_train[:, :100], 0.01, 200, 10, x_val, y_val)
