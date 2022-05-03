@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 
@@ -10,21 +9,21 @@ def _unpickle(file):
     return dict
 
 
-def display_flat_image(img):
-    img += -1 * img.min()
-    img /= img.max()
-    reshaped = img.reshape([3, 32, 32])
-    r = reshaped[0, :, :]
-    g = reshaped[1, :, :]
-    b = reshaped[2, :, :]
-    r -= r.min()
-    g -= g.min()
-    b -= g.min()
-    r /= r.max()
-    g /= g.max()
-    b /= b.max()
-    plt.imshow(np.dstack((r, g, b)))
-    plt.show()
+# def display_flat_image(img):
+#     img += -1 * img.min()
+#     img /= img.max()
+#     reshaped = img.reshape([3, 32, 32])
+#     r = reshaped[0, :, :]
+#     g = reshaped[1, :, :]
+#     b = reshaped[2, :, :]
+#     r -= r.min()
+#     g -= g.min()
+#     b -= g.min()
+#     r /= r.max()
+#     g /= g.max()
+#     b /= b.max()
+#     plt.imshow(np.dstack((r, g, b)))
+#     plt.show()
 
 
 def _load_batch(file_path):
