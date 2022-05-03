@@ -30,9 +30,13 @@
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
 \DeclareMathOperator{\R}{\mathbb{R}}
 \DeclareMathOperator{\E}{\mathbb{E}}
-
+\usepackage{multirow}
 \usepackage{listings}
 \usepackage{xcolor}
+
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{hhline}
 
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
@@ -83,7 +87,7 @@
 \textsc{\Large Deep Learning in Datascience}\\[0.2cm]
 \textsc{\large DD2424}\\[1cm] 										% Course Code
 \HRule \\[0.8cm]
-{ \huge \bfseries Assignment 1 (Bonus)}\\[0.7cm]								% Assignment
+{ \huge \bfseries Assignment 2 (Bonus)}\\[0.7cm]								% Assignment
 \HRule \\[2cm]
 \large
 \emph{Authors:}\\
@@ -93,143 +97,183 @@ Ali Banaei Mobarak Abadi\\[1.5cm]													% Author info
 \vfill 
 \end{titlepage}
 
-%%\begin{abstract}
-%%Your abstract.
-%%\end{abstract}
+\section{Introduction}
 
-%%%% SECTIONS
-%% Section 1
-\section*{Question 2.1}
-In this question we try to improve our network's peformance. To do so, we used the following methods.
+For the bonus part of this assignment, we focus on enhancing the performance of the model. For this purpose, different techniques such as data augmentation, regularization and increasing the number of hidden nodes were used.
 
-\subsection*{Increasing training set}
-As the fitst experiment, the size of the validation set was reduced to only 1K samples so we would have a bigger training set. We then trained the model with four different settings as before. The results of evaluation on test set are presented in \autoref{tab:bigger_training}.
+\section{More hidden nodes}
+
+One way to enhance the performance of a network is to add more hidden nodes so the complexity of the model would increase. In order to investigate the effect of the number of hidden nodes, a grid search on the number of hidden nodes and the value for lambda was performed. Since, as mentioned in the instructions, by increasing the complexity of the model, we will increase the probability of overfitting, we may use stronger regularization. So, we have to fine-tune the number of hidden nodes and the regularization parameter jointly. We used the values [10, 50, 70, 100, 150] for dimensionality of the hidden space and [0.0001, 0.001, 0.01, 0.1] for lambda value. For each pair of parameters, a model was trained for eight iterations on all the available training sets and then tested on a disjoint validation set. The results of this search can be found in \autoref{tab:hidden}.
+
+
 
 \begin{table}[h]
 	\centering
-	\caption{Evaluation of the model trained on bigger training set.}
-	\label{tab:bigger_training}
-	\begin{tabular}{|l|l|l|l|l|}
+	\caption{Accuracy of the model in grid search on number of hidden nodes and lambda.}
+	\label{tab:hidden}
+	\begin{tabular}{|c|c|c|c|c|c|} 
 		\hline
-		$\lambda$ & $\eta$ & Loss & Cost & Accuracy \\ \hline
-		0         & 0.1    & 6.70 & 6.70 & 0.26     \\ \hline
-		0         & 0.001  & 2.01 & 2.01 & 0.33     \\ \hline
-		0.1       & 0.001  & 1.74 & 1.79 & 0.40     \\ \hline
-		1         & 0.001  & 1.85 & 1.92 & 0.37     \\ \hline
+		\multicolumn{2}{|c|}{\multirow{2}{*}{}} & \multicolumn{4}{c|}{Lambda}   \\ 
+		\cline{3-6}
+		\multicolumn{2}{|c|}{}                  & 0.0001 & 0.001 & 0.01 & 0.1   \\ 
+		\hline
+		\multirow{5}{*}{Hidden nodes} & 10      & 0.30   & 0.33  & 0.40 & 0.35  \\ 
+		\cline{2-6}
+		& 50      & 0.43   & 0.45  & 0.47 & 0.36  \\ 
+		\cline{2-6}
+		& 70      & 0.45   & 0.46  & 0.48 & 0.36  \\ 
+		\cline{2-6}
+		& 100     & 0.46   & 0.48  & 0.48 & 0.35  \\ 
+		\cline{2-6}
+		& 150     & 0.48   & 0.48  & 0.47 & 0.36  \\
+		\hline
 	\end{tabular}
 \end{table}
 
-Now, if we compare these values and ones we got in the last part, we do not see any significant changes (for more confident conclusion, we may need to perform multiple tests and use significance tests, but here based on our inductive expectation and the values we can be sure the difference is not significant). It was expected that this will not lead to a major enhancement since the number of samples was not a major concern for us (we had enough samples to train our simple model).
+As we see, increasing the number of hidden nodes seems to benefit us until around 100 nodes. Note that we did not encounter overfitting here since we are training the model only for eight epochs. Also, we must be aware that increasing the training time may help us get a more accurate conclusion, especially considering the fact that more complex models may need more time to train. But based on our available time and computational power, this grid search can be sufficient.
 
-\subsection*{Augmenting the trainig data}
+\section{Using Dropout}
 
-In this part, the effect of augmentation was investigated. In each step, in order to make a minibatch, we perform flipping by the probability of 0.5 for each sample. As we saw, despite some minor increases in performance in some cases, this method does not have a huge impact. One may again use the same argument that before which since we have a considerable amount of data and a very simple network, these methods, which aim to increase the diversity of the input data fed to the network, may not have a significant impact since the bottleneck here is the low complexity of the model. The test results for this part can be found in \autoref{tab:flipping}.
+Now, we use dropout to regularize the network more. To see the effect of dropout, we trained the same network as exercise 4. The accuracy, cost, and loss during training can be found in \autoref{fig:dropout}. As we can see, the training and validation curves are closer to each other, and we get around 4 percent better accuracy on validation data. However, this value is small, and it is expected that dropout will help us more when we have a wider network with more units.
+
+\begin{figure}[h]
+	\centering
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/model_of_ex4_dropout__acc.png}
+		\caption{}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/model_of_ex4_dropout__loss.png}
+		\caption{}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/model_of_ex4_dropout__cost.png}
+		\caption{}
+	\end{subfigure}
+	\caption{Exercise 4 with Dropout}
+	\label{fig:dropout}
+\end{figure}
+
+\section{Data Augmentation}
+
+As another enhancement method, the same way for augmenting the data as the first assignment was used. To check the effect of this method, the same model as exercise 4 was trained. As we can see in \autoref{fig:aug}, the gap was further reduced, and we reached a better performance on the validation set.
+
+\begin{figure}[h]
+	\centering
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/model_of_ex4_fliping__acc.png}
+		\caption{}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/model_of_ex4_fliping__loss.png}
+		\caption{}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/model_of_ex4_fliping__cost.png}
+		\caption{}
+	\end{subfigure}
+	\caption{Exercise 4 with Dropout}
+	\label{fig:aug}
+\end{figure}
+
+\section{Learning rate decay}
+As we proceed with training, it may be a good idea to decrease the max learning rate in our scheduler. For this purpose, the scheduler, after each up and down, multiplies the max learning rate to a factor below 1. \autoref{fig:decay} depicts the learning rate after applying this change.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.5\linewidth]{images/scheduler_decay.png}
+\caption{Max learning rate decay}
+\label{fig:decay}
+\end{figure}
+
+\section{Training a big model}
+
+For the next part, a model with 100 hidden units was trained. In order to prevent overfitting, both data augmentation and dropout were used. For dropout, we turn off the nodes with a probability of 0.3. Also, during training, we decay the max learning rate with a factor of 0.8 after each $2 n_s$. As we can see in \autoref{fig:big}, this model can reach an accuracy of 0.54 after 30 iterations over all the data.
+
+
+\begin{figure}[h]
+	\centering
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/100_node_model_acc.png}
+		\caption{}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/100_node_model_loss.png}
+		\caption{}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/100_node_model_cost.png}
+		\caption{}
+	\end{subfigure}
+	\caption{Exercise 4 with Dropout}
+	\label{fig:big}
+\end{figure}
+
+\section{Intensive search on hyperparameter tuning}
+
+As the last part of the bonus part, we try to find a good combination of different hyperparameters which performs adequately. One should note that the best way to search for good parameters is to perform a grid search since different parameters can have an effect on each other and cannot be fine-tuned independently. However, here since performing a grid search would exponentially increase the number of models to train, some parameters that are predicted to have a minimal effect on each other are searched independently. We use a model with 120 units in the hidden layer in our search.
+In the first step, we find a good value for the factor which we use to decay the max learning rate. For this purpose, values of [0.5, 0.65, 0.8, 0.9] were tested (each model was trained for 20 epochs).  All these values resulted in very close results on our training (longer training may reveal more difference), but the value of 0.8 had the highest accuracy of 0.52.
+
+In the next step, we must find a good combination of values for the dropout parameter and lambda. Since weight decay and dropout are both forms of regularization, it is better to fine-tune them jointly. So, we did a grid search. For each combination of parameters, we trained the model for 20 epochs with a decay of 0.8 for the max learning rate, as we found in the last part. The accuracy of each model can be found in \autoref{tab:final}.
+
+
+
 
 \begin{table}[h]
 	\centering
-	\caption{Performance of trained network using data agumentation on test data}
-	\label{tab:flipping}
-	\begin{tabular}{|l|l|l|l|l|}
+	\caption{Accuracy of the model in grid search Dropout and lambda parameter.}
+	\label{tab:final}
+	\begin{tabular}{|c|c|c|c|c|} 
+		\cline{3-5}
+		\multicolumn{2}{c|}{\multirow{2}{*}{}} & \multicolumn{3}{c|}{Lambda}  \\ 
+		\cline{3-5}
+		\multicolumn{2}{c|}{}                  & 0    & 0.001 & 0.01          \\ 
 		\hline
-		$\lambda$ & $\eta$ & Loss & Cost & Accuracy \\ \hline
-		0         & 0.1    & 5.91 & 5.91 & 0.30     \\ \hline
-		0         & 0.001  & 2.02 & 2.02 & 0.33     \\ \hline
-		0.1       & 0.001  & 1.74 & 1.80 & 0.41     \\ \hline
-		1         & 0.001  & 1.85 & 1.92 & 0.38     \\ \hline
+		\multirow{5}{*}{Dropout p} & 1         & 0.47 & 0.49  & 0.51          \\ 
+		\cline{2-5}
+		& 0.85      & 0.48 & 0.49  & 0.51          \\ 
+		\cline{2-5}
+		& 0.7       & 0.49 & 0.50  & 0.52          \\ 
+		\cline{2-5}
+		& 0.55      & 0.48 & 0.49  & 0.52          \\ 
+		\cline{2-5}
+		& 0.4       & 0.47 & 0.48  & 0.51          \\
+		\hline
 	\end{tabular}
 \end{table}
 
-
-\subsection*{Learning rate decay}
-
-As the next improvement method, learning rate decay was used. At the beginning of the learning process, the learning rate was set to 0.01. Then, after 20 epochs, it was changed to 0.001. Then, after every 40 epochs, the learning rate was divided by 10. Increasing the learning rate after we converge to a flat area may help the network to converge faster to the optimal values instead of keeping jumping around it. As we can see in \autoref{fig:schedule}, on epochs that we decrease the learning rate, we have a sudden increase in accuracy and decrease in the loss function. Also, the performance of the network on the test data was increased, and in the end, we reached an accuracy of almost 0.43, which we had never seen before.
-
-\begin{figure}[h]
-	\centering
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.6\linewidth]{images/scheduled_accuracy_over_trainig_lambda=0.1.png}
-	\caption{Accuracy}
-	\end{subfigure}
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.6\linewidth]{images/scheduled_loss_over_trainig_lambda=0.1.png}
-		\caption{Loss value}
-	\end{subfigure}
-
-	\caption{Loss and accuracy on training and validation data during trainig using a learning rate scheduler.}
-	\label{fig:schedule}
-\end{figure}
-
-
-
-\section*{Question 2.2}
-We first derive the partial derivative of the loss function with respect to $p_k$. 
-
-\begin{align*}
-	& \frac{\partial l}{\partial p_k} = \frac{\partial \big( -\frac{1}{K}[(1-y_k) \log(1-p_k) + y_k \log(p_k)]\big)}{\partial p_k} = -\frac{1}{K} [ (1-y_k) \frac{-1}{1-p_k} + y_k \frac{1}{p_k}] = \\
-	& - \frac{1}{K} [\frac{y_k - 1}{1 - p_k} + \frac{y_k}{p_k}] = -\frac{1}{K} \frac{y_k - p_k}{p_k (1-p_k)}
-\end{align*}
-
-Now, we have
-
-\begin{align*}
-	& \frac{\partial p_k}{s_k} = \frac{\partial}{\partial s} (1 + e^{-s_k})^{-1} = -1 (1 + e^{-s_k})^{-2} (-e^{-s_k}) = \frac{1}{1 + e^{-s_k}} \frac{e^{-s_k}}{1 + e^{-s_k}} = \\
-	& \frac{1}{1 + e^{-s_k}}  \big( 1 -  \frac{1}{1 + e^{-s_k}} \big) = \sigma(s_k) (1-\sigma(s_k)) = p_k (1-p_k)
-\end{align*}
-
-
-And finally we have
-
-$$
-	\frac{\partial l}{\partial s_k} = \frac{\partial l}{\partial p_k} \frac{\partial p_k}{\partial s_k} = \frac{1}{K} \frac{p_k - y_k}{p_k (1-p_k)} p_k (1-p_k) = \frac{1}{K} (p_k - y_k)
-$$
-
-So, as we see, this is the same as cross-entropy with softmax activation except the devision by the number of classes. So, in the code we only need to change the forward pass (replacing the softmax with sigmoid) and in gradient descent we can simply devide the gradients by the number of classes. Since all the trainable parameters are before $s$ then this method will result in the same learning.
-
-
-After training the network with the new objective function, the model was evaluated on the test results. The new model reached the accuracy of 0.33 while the former model could reach 0.32 when we used $\eta_{CE}=0.001, \eta_{MBCE}=0.01, \lambda=0$. As we see, the two models perform very closely. [] shows the histogram of probabilities for both models. The histograms are very similar to each other, although in multiple binary classification methods, we have some winner classes that have a probability below 0.2. In cross-entropy, since we use softmax and all probabilities sum to one, then we do not see a lot of winner classes with low assigned probability. But because in the M-BCE, we do not have this constraint, the probability of winner classes is more freely set.
-Also, [] depicts the validation and training set loss during training. As we see, the cross-entropy method shows a gap between training and validation loss, while the two curves are almost identical in M-BCE. So, the M-BCE is less prone to overfitting.
+So, it seems like 0.7 as a dropout parameter and 0.01 as lambda can be a good combination. Finally, we want to see how many iterations we must train our network. Therefore, a model with the parameters we found is trained for a long time. We then look at the graphs and see when the model reaches a flat area or if there is overfitting. The model was trained for 80 epochs and [] depicts the records during training. As we see, there is no sign of overfitting to the training data. However, after 40 epochs, it looks like we do not experience much increase in the model's performance. This model reached the performance of 0.55 on test data.
 
 
 \begin{figure}[h]
 	\centering
-	\begin{subfigure}{\textwidth}
+	\begin{subfigure}{0.3\textwidth}
 		\centering
-		\includegraphics[width=.6\linewidth]{images/mbce_loss.png}
-		\caption{Multiple-BCE}
+		\includegraphics[width=\linewidth]{images/Final_cycle_tracker_acc.png}
+		\caption{}
 	\end{subfigure}
-	\begin{subfigure}{\textwidth}
+	\begin{subfigure}{0.3\textwidth}
 		\centering
-		\includegraphics[width=.6\linewidth]{images/simple_loss.png}
-		\caption{Cross-validation}
+		\includegraphics[width=\linewidth]{images/Final_cycle_tracker_loss.png}
+		\caption{}
 	\end{subfigure}
-	
-	\caption{Loss on training and validation data during trainig.}
-	\label{fig:mbce_loss}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/Final_cycle_tracker_cost.png}
+		\caption{}
+	\end{subfigure}
+	\caption{Training of the model with good hyper-parameters for 80 epochs}
+	\label{fig:last}
 \end{figure}
-
-
-\begin{figure}[h]
-	\centering
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.6\linewidth]{images/mbce_lamb0.png}
-		\caption{Multiple-BCE}
-	\end{subfigure}
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.6\linewidth]{images/simple_lamda0.png}
-		\caption{Cross-entropy}
-	\end{subfigure}
-	
-	\caption{Histogram of the true class probabilities.}
-	\label{fig:mbce_hist}
-\end{figure}
-
-
-\section*{Code documentation}
-Please go to the report for the mandatory part of the assignment for a full explanation of the implementation.
 
 
 %%%%%%%% EXTRA TIPS %%%%%%%%

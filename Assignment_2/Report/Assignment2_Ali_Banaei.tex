@@ -83,7 +83,7 @@
 \textsc{\Large Deep Learning in Datascience}\\[0.2cm]
 \textsc{\large DD2424}\\[1cm] 										% Course Code
 \HRule \\[0.8cm]
-{ \huge \bfseries Assignment 1}\\[0.7cm]								% Assignment
+{ \huge \bfseries Assignment 2}\\[0.7cm]								% Assignment
 \HRule \\[2cm]
 \large
 \emph{Authors:}\\
@@ -99,170 +99,183 @@ Ali Banaei Mobarak Abadi\\[1.5cm]													% Author info
 
 %%%% SECTIONS
 %% Section 1
-\section{Assignment Report}
-In this section, the results we can get by running the code are presented. For an explanation of the code and implementations, please see \autoref{sec:2}. Note that for the rest of this report, the available training data is divided into two parts, validation with a size of 5000 samples and the rest as training.
+\section{Checking the gradients}
 
-\subsection{Checking the gradients}
-
-After implementing the code for the forward path and calculating the gradient, calculated gradients were checked using the provided functions (for the final run, the slower version was used). To make the gradients big enough so that we can use the difference without a need for a division, the weight and bias matrices were initialized with a Gaussian distribution with a mean of 0 and a variance of 4. After calculating the gradients using the two methods, the mean, standard deviation, and maximum values for the absolute values of the difference of gradients were calculated by two methods, and the min, max and the SD of numerical gradients were printed. The results were as follows.
+After implementing the needed functions, we had to test the computed gradients using the back-propagation algorithm using the numerical estimation of the gradient. First, the initialization of the weight and bias matrices were changed. The initial values are selected uniformly from -2 to 2. By this way of initializing, the weights will have relatively big values, and this leads to first amplifying potential errors and second big gradient values, which enables us to compare them only using the absolute value of the difference. The results were as follows.
 
 \begin{lstlisting}
-	For abs of diff of gW: mean: 5.12e-09, std: 3.75e-09, max:2.11e-08, gradient min: -1.72, gradient max: 1.53, gradient std: 0.42
-	For abs of diff of gb: mean: 1.60e-09, std: 1.33e-09, max:4.21e-09, gradient min: -0.1, gradient max: 0.064, gradient std: 0.12
+	for W1: Max:0.7817716323188506, mean:-0.00980110914407343, std:0.17618794810131944 
+	for W1 error: Max:1.4683249884739347e-05, mean:1.0347053330027051e-05, std:5.720060851032624e-07
+	for W2: Max:13.493227888830006, mean:0.00019611783500295132, std:2.7529251052726416 
+	for W2 error: Max:0.0036512718726414706, mean:0.0001696644400953728, std:0.00045737611577545433
+	for b1: Max:0.3236899010516936, mean:0.07040882082947064, std:0.126665873714558 
+	for b1 error: Max:1.2523320971694063e-06, mean:2.4300402196618996e-07, std:2.7540197710057374e-07
+	for b2: Max:0.284773650491843, mean:2.02817318495363e-07, std:0.1318978074614518 
+	for b2 error: Max:6.511011487186913e-07, mean:2.0601960361160687e-07, std:2.2085068043956378e-07
 \end{lstlisting}
 
-As we can see, the differences are vary small while the gradients are not. So, we can conclude we are calculating the gradients correctly.
+As we can see, the error value compared to the gradient values is very small and is due to the numerical estimation and floating-point calculation error. So, we can proceed without worrying about the correctness of the gradients.
 
-\subsection{Training and evaluation}
+\section{Overfitting the network on small dataset}
 
-After implementing the remaining functions, the model was trained and tested using the provided hyperparameters. \autoref{fig:training} depicts the loss, cost function, and accuracy of training and validation sets during training. Also, the results of the evaluation of the model on test data can be found in \autoref{tab:ev}.
+In the next step, in order to make sure the network is learning properly, a small dataset containing only 100 samples with no regularization on the network were utilized. If we are performing the learning correctly, the network must overfit the training data meaning that we will see a very small value for training loss while the validation loss remains big. As shown below, the overfitting clearly happened.
+
+\begin{lstlisting}
+	epoch 199/200, trainingloss:0.0013889283351083822, training cost:0.0013889283351083822, validation loss:10.279636223892174, validation cost:10.279636223892174
+\end{lstlisting}
+
+
+\section{Cyclic learning rate}
+
+Now, it is time to implement the cyclic learning rate. As can be found in the code, the learning rate scheduler function is used during the training. First, the scheduler was tested by plotting the returned learning rate over iterations which can be found in \autoref{fig:cycle}.
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.5\linewidth]{images/scheduler.png}
+	\caption{Learning rate in each iteration from 0 to 100 with $lr_{max}=0.1$, $lr_{min}=0.05$ and $n_s=10$}
+	\label{fig:cycle}
+\end{figure}
+
+After checking the scheduler, implemented MLP was trained on 10000 samples with the specified settings of hyperparameters in the lab instructions. Loss function, cost, and accuracy during training can be found in \autoref{fig:ex3}. Note that since the recording of these values was done in each iteration, the graphs have more fluctuation compared to the ones in the instructions.  The graphs have the same overall characteristics and appearance as in the instructions. The trained network could classify the thest samples with an accuracy of \%43.2 .
+
+
+\begin{figure}[h]
+	\centering
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/1000_it_default_acc.png}
+		\caption{Accuracy}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/1000_it_default_loss.png}
+		\caption{Loss}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/1000_it_default_cost.png}
+		\caption{Cost}
+	\end{subfigure}
+	\caption{Training of the network with the settings of Exercise 3.}
+	\label{fig:ex3}
+\end{figure}
+
+
+
+\autoref{fig:ex4} depicts the same metrics for training a network using the settings of exercise 4. As we see, there is a gap between training and validation curves. This gap which seems increasing, can be a sign of potential overfitting if we do not use more data or other regularisation techniques. The resulting network reached the accuracy of \%46.9 over the test set.
+
+
+
+\begin{figure}[h]
+	\centering
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/exercise4_acc.png}
+		\caption{Accuracy}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/exercise4_loss.png}
+		\caption{Loss}
+	\end{subfigure}
+	\begin{subfigure}{0.3\textwidth}
+		\centering
+		\includegraphics[width=\linewidth]{images/exercise4_cost.png}
+		\caption{Cost}
+	\end{subfigure}
+	\caption{Training of the network with the settings of Exercise 4.}
+	\label{fig:ex4}
+\end{figure}
+
+\section{Fine-tuning $\lambda$ and final model}
+In order to find the best performing lambda, a two step search was performed. In the first step or the coarse search which we search a wider range of values for lambda. The model was trained for 4 epochs on all training data and the final accuracy over validation set was measured. Note that training the model for longer times could lead to more accurate estimation of the effect of each hyperparameter, but because of compatational limitations, 4 iteration over all the training data was used. The results of this search can be found in \autoref{tab:coarse}.
 
 \begin{table}[h]
 	\centering
-	\caption{Evaluation of the model with different values of $\lambda$ on the test set.}
-	\label{tab:ev}
-	\begin{tabular}{|l|l|l|l|l|}
+	\caption{Coarse search of lambda value for L2 regularization.}
+	\label{tab:coarse}
+	\begin{tabular}{|l|l|} 
 		\hline
-		$\lambda$ & $\eta$ & Loss & Cost & Accuracy \\ \hline
-		0         & 0.1    & 6.92 & 6.92 & 0.27     \\ \hline
-		0         & 0.001  & 2.02 & 2.02 & 0.32     \\ \hline
-		0.1       & 0.001  & 1.74 & 1.80 & 0.41     \\ \hline
-		1         & 0.001  & 1.85 & 1.92 & 0.37     \\ \hline
+		Lambda           & Accuracy  \\ 
+		\hline
+		$10^{-5}$ & 0.433     \\ 
+		\hline
+		$10^{-4}$ & 0.433     \\ 
+		\hline
+		$10^{-3}$ & 0.447     \\ 
+		\hline
+		$10^{-2}$ & \textbf{0.48}      \\ 
+		\hline
+		$10^{-1}$ & 0.39      \\ 
+		\hline
+		1                & 0.17      \\
+		\hline
 	\end{tabular}
 \end{table}
 
-\begin{figure}[h]
+In the next stage of our search, we sampled ten values for lambda around the lambda with the highest accuracy in the previous step. The results of this stage can be found in \autoref{tab:fine}. So, based on our observations we can conclude lambda value around 0.009 can be fine when using 50 hidden units.
+
+
+
+\begin{table}[h]
 	\centering
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.32\linewidth]{images/loss_over_trainig_eta=0.1_lambda=0.png}
-		\includegraphics[width=.32\linewidth]{images/cost_over_trainig_eta=0.1_lambda=0.png}
-		\includegraphics[width=.32\linewidth]{images/accuracy_over_trainig_eta=0.1_lambda=0.png}
-		\caption{$\lambda=0, \; \eta = 0.1$ }
-	\end{subfigure}
-
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.32\linewidth]{images/loss_over_trainig_eta=0.001_lambda=0.png}
-		\includegraphics[width=.32\linewidth]{images/cost_over_trainig_eta=0.001_lambda=0.png}
-		\includegraphics[width=.32\linewidth]{images/accuracy_over_trainig_eta=0.001_lambda=0.png}
-		\caption{$\lambda=0, \; \eta = 0.001$ }
-	\end{subfigure}
-
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.32\linewidth]{images/loss_over_trainig_eta=0.001_lambda=0.1.png}
-		\includegraphics[width=.32\linewidth]{images/cost_over_trainig_eta=0.001_lambda=0.1.png}
-		\includegraphics[width=.32\linewidth]{images/accuracy_over_trainig_eta=0.001_lambda=0.1.png}
-		\caption{$\lambda=0.1, \; \eta = 0.001$ }
-	\end{subfigure}
-
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.32\linewidth]{images/loss_over_trainig_eta=0.001_lambda=1.png}
-		\includegraphics[width=.32\linewidth]{images/cost_over_trainig_eta=0.001_lambda=1.png}
-		\includegraphics[width=.32\linewidth]{images/accuracy_over_trainig_eta=0.001_lambda=1.png}
-		\caption{$\lambda=1, \; \eta = 0.001$ }
-	\end{subfigure}
-
-	\caption{Loss, cost and accuracy of the model during training.}
-	\label{fig:training}
-\end{figure}
-
-We can see that when we set 0.1 as the learning rate, the network reaches a not-so-bad point after the first iteration; however, it keeps overshooting the optimal values and does not converge to a good set of weights. In this setting, the network jumps around, and it does not have adequate performance in the evaluation. However, when we change the learning rate to 0.001, the network converges, and the final accuracy increases. It is worth mentioning that when we do not use regularization ($\lambda=0$), the validation and training loss and accuracy have a considerable difference, and the network's performance is better on training data that it has seen. As expected, when we increase $\lambda$, this difference decreases, and the generalization performance of the network enhances. However, when we have $\lambda = 1$, the network's performance decreases. It may be because this value would enforce a strong constraint on our network, which structure is very simple. So, the network would not be able to optimize the weights to decrease the loss function effectively.
-
-Also, the visualization of the $W$ can be found in \autoref{fig:w_vis}. As we see, by increasing the $\lambda$, we have a smoother matrix. Also, when we do not use regularization, the network does not seem to capture any repetitive pattern in each class, while by using regularization, instead of memorizing the training set, the model learns these patterns.
+	\caption{Fine search of lambda value for L2 regularization.}
+	\label{tab:fine}
+	\begin{tabular}{|l|l|} 
+		\hline
+		Lambda & Accuracy  \\ 
+		\hline
+		0.0087 & \textbf{0.508}     \\ 
+		\hline
+		0.0071 & 0.506     \\ 
+		\hline
+		0.0060 & 0.505     \\ 
+		\hline
+		0.0123 & 0.508     \\ 
+		\hline
+		0.0113 & 0.505     \\ 
+		\hline
+		0.0115 & 0.504     \\ 
+		\hline
+		0.0110 & 0.503     \\ 
+		\hline
+		0.0135 & 0.500     \\ 
+		\hline
+		0.0061 & \textbf{0.508}     \\ 
+		\hline
+		0.0089 & \textbf{0.510}     \\
+		\hline
+	\end{tabular}
+\end{table}
 
 
-
-
+Finally, the network with $\lambda = 0.008$ and $n_{batch}=100$ was trained for 15 iterations over all the data except 10K which was used for validation. In the end, we were able to reach an accuracy of 0.515 over test data. The learning logs can be found in \autoref{fig:final}.
 
 
 \begin{figure}[h]
 	\centering
-	\begin{subfigure}{\textwidth}
+	\begin{subfigure}{0.3\textwidth}
 		\centering
-		\includegraphics[width=.5\linewidth]{images/weights_eta=0.1_lambda=0.png}
-		\caption{$\lambda=0, \; \eta = 0.1$ }
+		\includegraphics[width=\linewidth]{images/final_acc.png}
+		\caption{Accuracy}
 	\end{subfigure}
-	
-	\begin{subfigure}{\textwidth}
+	\begin{subfigure}{0.3\textwidth}
 		\centering
-		\includegraphics[width=.5\linewidth]{images/weights_eta=0.001_lambda=0.png}
-		\caption{$\lambda=0, \; \eta = 0.001$ }
+		\includegraphics[width=\linewidth]{images/final_loss.png}
+		\caption{Loss}
 	\end{subfigure}
-	
-	\begin{subfigure}{\textwidth}
+	\begin{subfigure}{0.3\textwidth}
 		\centering
-		\includegraphics[width=.5\linewidth]{images/weights_eta=0.001_lambda=0.1.png}
-		\caption{$\lambda=0.1, \; \eta = 0.001$ }
+		\includegraphics[width=\linewidth]{images/final_cost.png}
+		\caption{Cost}
 	\end{subfigure}
-	
-	\begin{subfigure}{\textwidth}
-		\centering
-		\includegraphics[width=.5\linewidth]{images/weights_eta=0.001_lambda=1.png}
-		\caption{$\lambda=1, \; \eta = 0.001$ }
-	\end{subfigure}
-	
-	\caption{Visualization of W after training.}
-	\label{fig:w_vis}
+	\caption{Training of the final model with $\lambda=0.008$.}
+	\label{fig:final}
 \end{figure}
 
 
-\section{Implementation Documentation}
-\label{sec:2}
-
-Here is a brief explanation of the implemented functions. For each one, a set of inputs, outputs, and a short description of it is provided.
-
-\lstinline[basicstyle=\color{red}]|unpickle|: Loads a file saved using pickle. The input is the path to the file and returns the loaded onject.
-
-\lstinline[basicstyle=\color{red}]|load_data|: The input is the path to the directory containing CIFAR-10 dataset. Then the function loads all the batches, concatenate them and perform z-scoring on all the data based on the mean and variance found in training set. Then based on the input \lstinline[basicstyle=\color{red}]|validation_n| splits a validation set from the training data and return training, validation and test sets. Labels are represented by one-hot coding.
-
-\lstinline[basicstyle=\color{red}]|shuffle|: Performs random shuffling of the input arrays. Note that arrays must have the same size in the second axis.
-
-\lstinline[basicstyle=\color{red}]|flip|: Performs horizontal flipping of the samples in a dataset X.
-
-\lstinline[basicstyle=\color{red}]|softmax|: Softmax activation function.
-
-\lstinline[basicstyle=\color{red}]|sigmoid|: Sigmoid activation function
-
-\lstinline[basicstyle=\color{red}]|forward|: forward path in the network.
-
-\lstinline[basicstyle=\color{red}]|accuracy|: Accepts correct labels and predictions of a model and returns the accuracy of the model in predicting the labels.
-
-\lstinline[basicstyle=\color{red}]|loss|: Cross entropy loss and cost. If we set \lstinline|lamda=0| then the result is the loss and otherwise it is the cost. 
-
-\lstinline[basicstyle=\color{red}]|mbce_loss|: Multiple-MBCE loss.
-
-\lstinline[basicstyle=\color{red}]|compute_gradients|: Calculates the gradient of the cost function with respect to $W$ and $b$.
-
-\lstinline[basicstyle=\color{red}]|fit|: Performs training on the dataset \lstinline|X,Y|. This function can perform flipping agumentation (for bonus part) and training with M-BCE (bonus part). Function returns the final values of $W$ and $b$ with logs. Logs is a dictionart containing accuracy, lost and cost after each epoch for training and validation (if given) data during training.
-
-\lstinline[basicstyle=\color{red}]|evaluate|: Accepts parameters of a model and evaluate it on the input dataset. Then accuracy, cost and loss values are returned using a dictionary.
-
-\lstinline[basicstyle=\color{red}]|gradient_checker|: Used to check if our \lstinline|calculate_gradients| function is working properly. This function initialize model parameter with big values and calculates the gradients of the cost function using both numeric and analytical solutions. Then some statistics are printed which help us evaluate the correctness of out implementations.
-
-\lstinline[basicstyle=\color{red}]|fit_and_plot|: This function is used for the mandatory part of the assignment. It initialize a model, fit it on a given dataset, plot the logs, evaluate on test data and finaly plot the parameters $W$. Plots are saved in a subdirectory of the project.
-
-\lstinline[basicstyle=\color{red}]|mandatory|: Performs tests needed for the first part of the assignment.
-
-\lstinline[basicstyle=\color{red}]|bonus_2_1_1|: First method suggested in the bonus part to enhance the performance of the model. This function trains a network on a bigger training dataset and evaluate it on test data.
-
-\lstinline[basicstyle=\color{red}]|bonus_2_1_2|: This function uses flipping as a agumentation method with probability of 0.5 during training. Then the trained model is evaluated on test data.
-
-\lstinline[basicstyle=\color{red}]|lr_scheduler|: A scheduler for learning rate. Input is the epoch we are currently on and the function returns the learning rate we must use in this epoch. This function is used for learning rate decay during training.
-
-\lstinline[basicstyle=\color{red}]|fit_with_scheduler|: Instead of training a model with a fxed learning rate, uses the scheduler to set the learning rate at each epoch.
-
-\lstinline[basicstyle=\color{red}]|plot_correct_hist|: This function plots the histogram of the probability of the correct classes and the ones correctly classified. This function is used in 2.2.
-
-\lstinline[basicstyle=\color{red}]|bonus_2_2|: Trains two models with cross-entropy with softmax and M-BCE with sigmoid, plots the histograms and loss during training and evaluate them on test data. This function does everything for the second question of the bonus part.
-
-
-Please note that since these functions were originally implemented in different files, running the uploaded code will probably result in compile or runtime errors. If there you need to run the code, please contact me, and I can provide access to the Github repository containing the project for this assignment.
-
-
-
+\section{Code explanation}
+The code for this assignment has a very similar structure to the first assignment. Only a function for learning rate scheduling and some others for fine-tuning the parameters were added.
 
 %%%%%%%% EXTRA TIPS %%%%%%%%
 %% If you want to include an figure
