@@ -9,6 +9,22 @@ def _unpickle(file):
     return dict
 
 
+def softmax(logits):
+    logits = logits.T
+    assert len(logits.shape) == 2
+    s = np.max(logits, axis=1)
+    s = s[:, np.newaxis]
+    e_x = np.exp(logits - s)
+    div = np.sum(e_x, axis=1)
+    div = div[:, np.newaxis]
+    probs = e_x / div
+    return probs.T
+
+
+def relu(logits):
+    return np.where(logits > 0, logits, 0)
+
+
 # def display_flat_image(img):
 #     img += -1 * img.min()
 #     img /= img.max()
