@@ -1,5 +1,9 @@
+from calendar import leapdays
 import enum
+from math import gamma
 from turtle import forward
+
+from matplotlib.ft2font import LOAD_LINEAR_DESIGN
 from utils import get_all_data, softmax, relu
 import os
 import numpy as np
@@ -22,22 +26,29 @@ class Dense_layer:
         self.use_bn = use_batch_norm
         if self.use_bn:
             self.mu = np.zeros(n_units)
+            self.mu_average = np.zeros(n_units)
             self.v = np.ones(n_units)
+            self.v_average = np.ones(n_units)
             self.gamma = np.ones(n_units)
             self.beta = np.zeros(n_units)
+            self.alpha = 0.9
 
     def forward(self, X, test):
         self.input = X
         h = ((self.W @ X).T + self.b).T
         if self.use_bn:
             if test:
-                mean = self.mu
-                var = self.v
+                mean = self.mu_average
+                var = self.v_average
             else:
+                self.s = h.copy()
                 n = X.shape[1]
                 mean = np.mean(h, axis=1)
-                var = np.var(h, axis=1) * (n-1) / n
+                var = np.var(h, axis=1)
+                self.mu = mean
+                self.v = var
             h = np.diag(1 / np.sqrt(var+1e-6)) @ (h.T - mean).T
+            self.s_hat = h.copy()
             h = ((h.T * self.gamma) + self.beta).T
 
         if self.activation == 'relu':
@@ -46,19 +57,40 @@ class Dense_layer:
             self.output = softmax(h)
         return self.output
 
+    def _batch_norm_back(self, g_in):
+        n = g_in.shape[1]
+        sigma1 = 1 / np.sqrt(self.v+1e-6)
+        sigma2 = 1 / np.power(self.v+1e-6, 1.5)
+        g1 = (g_in.T * sigma1).T
+        g2 = (g_in.T * sigma2).T
+        d = (self.s.T - self.mu).T
+        c = (g2 * d) @ np.ones([n, 1])
+        return g1 - (((g1 @ np.ones([n, 1])) @ np.ones([1, n])) / n) - d * (c @ np.ones([1, n])) / n
+
     def backward(self, g_in):
         n_batch = self.input.shape[1]
+        self.gradient = [None, None, None, None]
         if self.activation == 'softmax':
             gradient = g_in
             g_W = gradient @ self.input.T / n_batch + 2 * self.lambda_ * self.W
             g_b = np.mean(gradient, axis=1)
-            self.gradient = (g_W, g_b)
+            self.gradient[0] = g_W
+            self.gradient[1] = g_b
 
         elif self.activation == 'relu':
-            gradient = g_in * np.where(self.output > 0, 1, 0)
+            gradient = np.where(self.output > 0, g_in, 0)
+            if self.use_bn:
+                g_gamma = np.mean(gradient * self.s_hat, axis=1)
+                g_beta = np.mean(gradient, axis=1)
+                self.gradient[2] = g_gamma
+                self.gradient[3] = g_beta
+                n = gradient.shape[1]
+                gradient = (gradient.T * self.gamma).T
+                gradient = self._batch_norm_back(gradient)
             g_W = gradient @ self.input.T / n_batch + 2 * self.lambda_ * self.W
             g_b = np.mean(gradient, axis=1)
-            self.gradient = (g_W, g_b)
+            self.gradient[0] = g_W
+            self.gradient[1] = g_b
 
         return self.W.T @ gradient
 
@@ -67,7 +99,14 @@ class Dense_layer:
             raise Exception('First you must calculate gradient')
         self.W -= leraning_rate * self.gradient[0]
         self.b -= leraning_rate * self.gradient[1]
-        self.gradient = (None, None)
+        if self.use_bn:
+            self.gamma -= leraning_rate * self.gradient[2]
+            self.beta -= leraning_rate * self.gradient[3]
+            self.mu_average = self.alpha * \
+                self.mu_average + (1-self.alpha) * self.mu
+            self.v_average = self.alpha * \
+                self.v_average + (1-self.alpha) * self.v
+        self.gradient = [None, None, None, None]
 
 
 class Model:
@@ -85,6 +124,7 @@ class Model:
                 n_in = n
             self.layers.append(Dense_layer(
                 n_in, n_out, 'softmax', lambda_, False))
+        self.use_bn = use_bn
 
     def _forward(self, X, is_test):
         x = X
@@ -126,11 +166,13 @@ class Model:
         return X[:, idx], Y[:, idx], Z[:, idx]
 
     def _numerical_gradient(self, X, Y):
-        h = 1e-4
+        h = 1e-6
         G_Ws = []
         G_bs = []
-        c = self._cost(Y, self._forward(X))
-        for l in tqdm(self.layers):
+        G_gammas = []
+        G_betas = []
+        c = self._cost(Y, self._forward(X, False))
+        for idx, l in enumerate(self.layers):
             g_w = np.zeros(l.W.shape)
             g_b = np.zeros(l.b.shape)
             w_save = l.W
@@ -138,19 +180,39 @@ class Model:
             for i in range(len(l.b)):
                 l.b = b_save.copy()
                 l.b[i] += h
-                c2 = self._cost(Y, self._forward(X))
+                c2 = self._cost(Y, self._forward(X, False))
                 g_b[i] = (c2-c) / h
             l.b = b_save
             for i in range(l.W.shape[0]):
                 for j in range(l.W.shape[1]):
                     l.W = w_save.copy()
                     l.W[i][j] += h
-                    c2 = self._cost(Y, self._forward(X))
+                    c2 = self._cost(Y, self._forward(X, False))
                     g_w[i][j] = (c2-c) / h
             l.W = w_save
             G_Ws.append(g_w)
             G_bs.append(g_b)
-        return G_Ws, G_bs
+            if self.use_bn and idx < len(self.layers)-1:
+                g_gamma = np.zeros(l.gamma.shape)
+                g_beta = np.zeros(l.beta.shape)
+                gamma_save = l.gamma
+                for i in range(len(l.gamma)):
+                    l.gamma = gamma_save.copy()
+                    l.gamma[i] += h
+                    c2 = self._cost(Y, self._forward(X, False))
+                    g_gamma[i] = (c2 - c) / h
+                l.gamma = gamma_save
+                beta_save = l.beta
+                for i in range(len(l.beta)):
+                    l.beta = beta_save.copy()
+                    l.beta[i] += h
+                    c2 = self._cost(Y, self._forward(X, False))
+                    g_beta[i] = (c2 - c) / h
+                l.beta = beta_save
+                G_gammas.append(g_gamma)
+                G_betas.append(g_beta)
+
+        return G_Ws, G_bs, G_gammas, G_betas
 
     def gradient_tester(self, X, Y):
         saves = []
@@ -158,8 +220,8 @@ class Model:
             saves.append((l.W, l.b))
             l.W = np.random.normal(0, 0.5, l.W.shape)
             l.b = np.random.normal(0, 0.5, l.b.shape)
-        G_Ws, G_bs = self._numerical_gradient(X, Y)
-        self._backward(Y, self._forward(X))
+        G_Ws, G_bs, G_gammas, G_betas = self._numerical_gradient(X, Y)
+        self._backward(Y, self._forward(X, False))
         for i, l in enumerate(self.layers):
             print(f'layer {i}:')
             diff = G_Ws[i] - l.gradient[0]
@@ -168,12 +230,20 @@ class Model:
             diff = G_bs[i] - l.gradient[1]
             print(
                 f'\tb: mean={l.gradient[1].mean()} std={l.gradient[1].std()} mean_diff={diff.mean()} std_diff={diff.std()} max_diff={diff.max()}')
+            if self.use_bn and i < len(G_Ws)-1:
+                diff = G_gammas[i] - l.gradient[2]
+                print(
+                    f'\tgamma: mean={l.gradient[2].mean()} std={l.gradient[2].std()} mean_diff={diff.mean()} std_diff={diff.std()} max_diff={diff.max()}')
+                diff = G_betas[i] - l.gradient[3]
+                print(
+                    f'\tbetas: mean={l.gradient[3].mean()} std={l.gradient[3].std()} mean_diff={diff.mean()} std_diff={diff.std()} max_diff={diff.max()}')
+
             print('-----------')
             l.W = saves[i][0]
             l.b = saves[i][1]
 
     def evaluate(self, X, Y):
-        P = self._forward(X)
+        P = self._forward(X, True)
         return [self._loss(Y, P), self._cost(Y, P), self._accuracy(Y, P)]
 
     def fit(self, X, Y, learning_rate, epochs, batch_size, x_val, y_val, lr_scheduler=None, plot_iter=10):
@@ -192,7 +262,7 @@ class Model:
                         break
                     x = X[:, start_index: end_index]
                     y = Y[:, start_index: end_index]
-                    p = self._forward(x)
+                    p = self._forward(x, False)
                     self._backward(y, p)
                     # pbar.set_description(f'loss:{self._cost(y, p):.3f}')
                     if type(lr_scheduler) != type(None):
@@ -231,8 +301,8 @@ if __name__ == '__main__':
     # # model.gradient_checker(x_train[:, :30], y_train[:, :30], ComputeGradsNum)
     # model.fit(x_train[:, :100], y_train[:, :100], 0.01, 200, 10, x_val, y_val)
 
-    model = Model(x_train.shape[0], [10, 10], 10, 0.0)
-    # logs = model.fit(x_train, y_train, 0.01, 2, 20, x_val, y_val)
+    model = Model(x_train.shape[0], [10, 10], 10, 0.0, True)
+    # logs = model.fit(x_train, y_train, 0.01, 12, 20, x_val, y_val)
     # plt.plot(logs['val_loss'])
     # print(model.evaluate(x_test, y_test))
     # plt.show()
